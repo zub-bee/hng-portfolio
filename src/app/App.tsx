@@ -570,15 +570,15 @@ const projects: Project[] = [
       "Architected and built the entire backend from scratch: designed the PostgreSQL schema for profiles and users, implemented GitHub OAuth 2.0 with PKCE (S256 challenge) for both web and CLI clients with HTTP-only cookie transport and Authorization header support respectively. Built role-based access control (admin/analyst separation), a rule-based NLP query parser that converts plain English like 'adult males from Kenya' into parameterised SQL by resolving country names via REST Countries API to ISO codes and mapping age keywords to numeric ranges. Added API versioning middleware (X-API-Version header enforcement), Redis-backed rate limiting (auth: 10/min, API: 60/min with IPv6 subnet grouping), token blacklisting on logout/refresh, transparent token auto-refresh for both web and CLI, admin CSV export, profile aggregation dashboard, and the full CLI tool with device-code auth flow. Integrated Genderize.io, Agify.io, and Nationalize.io for name classification.",
     blogSlug: "insighta-profiles-api",
     live: "https://ubiquitous-chainsaw-production-73a8.up.railway.app/",
-    source: "https://github.com/Zubbee18/ubiquitous-chainsaw",
+    source: "https://github.com/zub-bee/ubiquitous-chainsaw",
     extraLinks: [
       {
         label: "Web Portal",
-        url: "https://github.com/Zubbee18/insighta-web-portal",
+        url: "https://github.com/zub-bee/insighta-web-portal",
       },
       {
         label: "CLI Tool",
-        url: "https://github.com/Zubbee18/insighta-cli-tool",
+        url: "https://github.com/zub-bee/insighta-cli-tool",
       },
     ],
   },
@@ -591,7 +591,7 @@ const projects: Project[] = [
     contribution:
       "Implemented the full system from a given spec: a 500ms-interval polling worker that queries SQLite for pending/retrying jobs whose nextRetryAt has elapsed, executes the HTTP request, and routes the result based on status code. 2xx marks completed, 4xx marks permanently failed (no retry), 5xx triggers exponential backoff (backoffMs * 2^attempt * jitter where jitter is 0.8-1.2 per attempt to prevent thundering herd). When attemptCount exceeds configurable maxRetries (default 5), the job moves to failed status as a dead-letter. Every attempt is recorded in a separate attempts table with status and message for full auditability. Built the REST API: POST /request for job submission with URL/method/body validation, GET /requests/:id with joined attempt history, and GET /requests?status= for filtering. All DB mutations use SQLite transactions for atomicity.",
     blogSlug: "http-retry-engine",
-    source: "https://github.com/Zubbee18/retry-engine",
+    source: "https://github.com/zub-bee/retry-engine",
   },
   {
     name: "SkillBridge API",
@@ -614,7 +614,7 @@ const projects: Project[] = [
       "Built a scheduler that creates, queues, processes, and tracks jobs while workers run independently in the background. Added retry handling with a maximum of 3 attempts, dead-letter queue recovery, priority ordering, cancellation handling, DAG workflow support, starvation prevention, and a live React dashboard to inspect queue state.",
     blogSlug: "zubbee-scheduler",
     live: "https://zubbee-scheduler-fe.vercel.app",
-    source: "https://github.com/Zubbee18/zubbee-scheduler",
+    source: "https://github.com/zub-bee/zubbee-scheduler",
   },
 ];
 
@@ -695,7 +695,7 @@ function SocialIcon({
           </div>
           <div className="flex flex-col pt-0.5">
             <span className="text-[12px] font-medium text-black dark:text-white">
-              @Zubbee18
+              @zub-bee
             </span>
             <span className="text-[11px] opacity-70 leading-snug pt-1">
               Explore repositories, contributions, system architecture design
@@ -954,7 +954,7 @@ export default function App() {
           )}
 
           <div className="flex gap-6 items-center pt-8">
-            <SocialIcon href="https://github.com/Zubbee18" label="GitHub">
+            <SocialIcon href="https://github.com/zub-bee" label="GitHub">
               <Github size={16} />
             </SocialIcon>
             <SocialIcon
