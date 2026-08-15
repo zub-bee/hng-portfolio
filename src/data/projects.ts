@@ -20,7 +20,7 @@ export const projects: Project[] = [
     contribution:
       "Architected and built the entire backend from scratch: designed the PostgreSQL schema for profiles and users, implemented GitHub OAuth 2.0 with PKCE (S256 challenge) for both web and CLI clients with HTTP-only cookie transport and Authorization header support respectively. Built role-based access control (admin/analyst separation), a rule-based NLP query parser that converts plain English like 'adult males from Kenya' into parameterised SQL by resolving country names via REST Countries API to ISO codes and mapping age keywords to numeric ranges. Added API versioning middleware (X-API-Version header enforcement), Redis-backed rate limiting (auth: 10/min, API: 60/min with IPv6 subnet grouping), token blacklisting on logout/refresh, transparent token auto-refresh for both web and CLI, admin CSV export, profile aggregation dashboard, and the full CLI tool with device-code auth flow. Integrated Genderize.io, Agify.io, and Nationalize.io for name classification.",
     blogSlug: "insighta-profiles-api",
-    live: "https://insighta-web-portal.netlify.app/",
+    live: "https://insighta-web-portal.netlify.app/login.html",
     source: "https://github.com/zub-bee/ubiquitous-chainsaw",
     extraLinks: [
       {
