@@ -1,0 +1,154 @@
+---
+import Icon from './Icon.astro'
+import type { IconName } from './icons'
+import { FONTS } from '../data/site.js'
+
+/**
+ * A link that reveals a hover card.
+ *
+ * Replaces the Radix HoverCard + framer-motion React component. The card markup
+ * is rendered here (server-side) into an inert <template> inside the anchor;
+ * src/scripts/link-preview.ts clones it into a single shared popover on hover.
+ * Keeping the markup here rather than building it in JS means icons stay real
+ * components and nothing needs HTML-escaping into data attributes.
+ *
+ * With no card fields supplied, external links fall back to a microlink
+ * screenshot fetched on hover - never on page load, which is what the old
+ * component did for every link at once.
+ */
+interface Props {
+  url: string
+  class?: string
+  style?: string
+  ariaLabel?: string
+  layout?: 'nav' | 'social' | 'endpoint'
+  /** Small uppercase mono label above the title. */
+  eyebrow?: string
+  /** `social` layout: rose-coloured icon + label header row. */
+  icon?: IconName
+  iconLabel?: string
+  title?: string
+  description?: string
+  /** `endpoint` layout: HTTP method chip shown beside the title. */
+  badge?: string
+  /** Wraps long unbroken strings such as the email address. */
+  breakAll?: boolean
+  /** Matches the extra 4px of inner padding some cards had in the original. */
+  pad?: boolean
+}
+
+const {
+  url,
+  class: className,
+  style,
+  ariaLabel,
+  layout,
+  eyebrow,
+  icon,
+  iconLabel,
+  title,
+  description,
+  badge,
+  breakAll = false,
+  pad = false,
+} = Astro.props
+
+const isExternal = /^https?:/i.test(url)
+const hasCard = Boolean(layout)
+
+const badgeTone =
+  badge === 'POST'
+    ? 'bg-amber-500/15 text-amber-500 dark:bg-amber-400/10 dark:text-amber-400 border-amber-500/20'
+    : 'bg-emerald-500/15 text-emerald-500 dark:bg-emerald-400/10 dark:text-emerald-400 border-emerald-500/20'
+---
+
+<a
+  href={url}
+  target={isExternal ? '_blank' : undefined}
+  rel={isExternal ? 'noopener noreferrer' : undefined}
+  aria-label={ariaLabel}
+  class:list={['text-black dark:text-white', className]}
+  style={style}
+  data-preview
+  data-preview-kind={hasCard ? 'card' : isExternal ? 'image' : 'text'}
+>
+  <slot />
+
+  {
+    hasCard && (
+      <template data-preview-card>
+        {layout === 'social' && (
+          <div class:list={['flex flex-col gap-2 text-left', pad && 'p-1']}>
+            <div class="flex items-center gap-2 text-rose-500 dark:text-rose-400">
+              {icon && <Icon name={icon} size={18} />}
+              <span class="font-semibold text-[13px] tracking-tight">
+                {iconLabel}
+              </span>
+            </div>
+            <div class="flex flex-col pt-0.5">
+              <span
+                class="text-[12px] font-medium text-black dark:text-white"
+                style={breakAll ? 'word-break: break-all' : undefined}
+              >
+                {title}
+              </span>
+              <span class="text-[11px] opacity-70 leading-snug pt-1">
+                {description}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {layout === 'endpoint' && (
+          <div class:list={['flex flex-col gap-1.5 text-left', pad && 'p-1']}>
+            <span
+              class="text-[9px] uppercase opacity-50 tracking-wider"
+              style={`font-family: ${FONTS.mono}`}
+            >
+              {eyebrow}
+            </span>
+            <div class="flex items-center gap-2">
+              <span
+                class:list={[
+                  'text-[9px] font-bold px-1.5 py-0.5 rounded border',
+                  badgeTone,
+                ]}
+                style={`font-family: ${FONTS.mono}`}
+              >
+                {badge}
+              </span>
+              <span
+                class="text-[12px] font-medium text-black dark:text-white"
+                style={`font-family: ${FONTS.mono}`}
+              >
+                {title}
+              </span>
+            </div>
+            <p class="text-[11px] opacity-70 leading-snug pt-0.5">
+              {description}
+            </p>
+          </div>
+        )}
+
+        {layout === 'nav' && (
+          <div class:list={['flex flex-col gap-1 text-left', pad && 'p-1']}>
+            {eyebrow && (
+              <span
+                class="text-[9px] uppercase opacity-50 tracking-wider"
+                style={`font-family: ${FONTS.mono}`}
+              >
+                {eyebrow}
+              </span>
+            )}
+            <h4 class="text-[13px] font-semibold leading-tight pt-0.5">
+              {title}
+            </h4>
+            <p class="text-[11px] opacity-70 leading-snug pt-1">
+              {description}
+            </p>
+          </div>
+        )}
+      </template>
+    )
+  }
+</a>

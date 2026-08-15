@@ -1,0 +1,91 @@
+---
+import type { GetStaticPaths } from 'astro'
+import { getCollection, render, type CollectionEntry } from 'astro:content'
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import LinkPreview from '../../components/LinkPreview.astro'
+import Icon from '../../components/Icon.astro'
+import { SITE, FONTS } from '../../data/site.js'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const posts = await getCollection('blog')
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }))
+}
+
+const { post } = Astro.props as { post: CollectionEntry<'blog'> }
+const { Content } = await render(post)
+
+const url = new URL(`/blog/${post.id}/`, SITE.url).href
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.data.title,
+  description: post.data.summary,
+  datePublished: post.data.date.toISOString(),
+  dateModified: post.data.date.toISOString(),
+  inLanguage: 'en',
+  mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+  url,
+  image: new URL(SITE.ogImage, SITE.url).href,
+  author: {
+    '@type': 'Person',
+    name: SITE.name,
+    url: SITE.url,
+    sameAs: [SITE.github, SITE.linkedin],
+  },
+  publisher: { '@type': 'Person', name: SITE.name, url: SITE.url },
+  about: post.data.projectName,
+}
+---
+
+<BaseLayout
+  title={`${post.data.title} | ${SITE.name}`}
+  description={post.data.summary}
+  activeNav="blog"
+  tagline={SITE.blogDescription}
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
+    <article>
+      <LinkPreview
+        url="/blog/"
+        class="opacity-40 hover:opacity-100 transition-opacity text-[10px] uppercase inline-flex items-center gap-1.5"
+        style="letter-spacing: 1px"
+        layout="nav"
+        pad
+        eyebrow="Navigation"
+        title="Back to Blog"
+        description="Return to the list of engineering writeups detailing backend builds and system designs."
+      >
+        <Icon name="arrow-left" size={10} /> Back to all posts
+      </LinkPreview>
+
+      <h1
+        class="text-[28px] leading-[38px] pt-6"
+        style="font-weight: 500; letter-spacing: -0.8px"
+      >
+        {post.data.title}
+      </h1>
+      <p
+        class="opacity-50 text-[12px] uppercase pt-2"
+        style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+      >
+        {post.data.projectName}
+      </p>
+      <p
+        class="opacity-50 text-[11px] uppercase pt-5"
+        style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+      >
+        Written by Zubbee&trade;
+      </p>
+
+      <div class="prose pt-2">
+        <Content />
+      </div>
+    </article>
+  </section>
+</BaseLayout>

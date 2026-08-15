@@ -1,0 +1,469 @@
+@import url("https://fonts.googleapis.com/css2?family=Monsieur+La+Doulaise&family=Geist:wght@300;400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap");
+
+@import "tailwindcss" source(none);
+@source '../**/*.{astro,ts,js,md}';
+
+/* Dark mode is driven by a `.dark` class on <html>, set by a blocking script in
+   BaseLayout before first paint. */
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Base tokens. Trimmed from the old shadcn theme.css down to the variables the
+   base layer below actually references - the chart/sidebar/card/popover sets
+   went out with the shadcn component library.
+   --------------------------------------------------------------------------- */
+:root {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: oklch(0.145 0 0);
+  --border: rgba(0, 0, 0, 0.1);
+  --ring: oklch(0.708 0 0);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --border: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  /* Default typography for bare elements. Utility classes override these, which
+     is why every heading in the markup can still set its own size. */
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Theme toggle circular reveal (View Transitions API).
+   --------------------------------------------------------------------------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+.theme-toggle-circle::view-transition-new(root) {
+  animation: theme-reveal 1.1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--toggle-x, 50%) var(--toggle-y, 50%));
+  }
+  to {
+    clip-path: circle(
+      var(--toggle-r, 150vmax) at var(--toggle-x, 50%) var(--toggle-y, 50%)
+    );
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Stateful icon swaps, done in CSS so the markup can ship both icons and no JS
+   is needed to keep them in sync.
+   --------------------------------------------------------------------------- */
+[data-theme-toggle] .icon-sun {
+  display: none;
+}
+
+.dark [data-theme-toggle] .icon-sun {
+  display: block;
+}
+
+.dark [data-theme-toggle] .icon-moon {
+  display: none;
+}
+
+[data-copy-email] .icon-check {
+  display: none;
+}
+
+[data-copy-email][data-copied] .icon-check {
+  display: block;
+}
+
+[data-copy-email][data-copied] .icon-copy {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Fixed gradient that fades in over the last 30% of the page. Was an inline
+   style driven by a React ternary; now a class with a dark variant.
+   --------------------------------------------------------------------------- */
+[data-scroll-gradient] {
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 100%,
+    rgba(255, 200, 215, 0.7) 0%,
+    rgba(255, 220, 225, 0.4) 40%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.dark [data-scroll-gradient] {
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 100%,
+    rgba(120, 20, 55, 0.85) 0%,
+    rgba(80, 10, 40, 0.55) 30%,
+    rgba(40, 5, 20, 0.25) 60%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+/* Gradient text on the "Let's build." contact heading. */
+.contact-heading {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), #000000);
+}
+
+.dark .contact-heading {
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.4),
+    #ffffff
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown body (.prose)
+
+   Direct translation of the `components` map that used to live in the
+   `BlogMarkdown` React component. Every size, spacing, opacity and weight below
+   is carried over one-for-one. Heading levels are shifted one down by the
+   rehype plugin in astro.config.mjs, so markdown `#` arrives here as h2.
+   --------------------------------------------------------------------------- */
+.prose h2 {
+  font-size: 30px;
+  line-height: 40px;
+  padding-top: 2rem;
+  letter-spacing: -0.8px;
+  font-weight: 500;
+}
+
+.prose h3 {
+  font-size: 22px;
+  line-height: 32px;
+  padding-top: 2.5rem;
+  letter-spacing: -0.4px;
+  font-weight: 500;
+}
+
+.prose h4 {
+  font-size: 18px;
+  line-height: 28px;
+  padding-top: 2rem;
+  font-weight: 500;
+}
+
+.prose h5,
+.prose h6 {
+  font-size: 16px;
+  line-height: 24px;
+  padding-top: 1.5rem;
+  font-weight: 500;
+}
+
+.prose p {
+  opacity: 0.75;
+  font-size: 15px;
+  line-height: 26px;
+  padding-top: 1.25rem;
+  font-weight: 300;
+}
+
+.prose ul,
+.prose ol {
+  padding-top: 1rem;
+  padding-left: 1.25rem;
+  opacity: 0.8;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li {
+  font-size: 15px;
+  line-height: 25px;
+}
+
+/* space-y-2 */
+.prose li + li {
+  margin-top: 0.5rem;
+}
+
+/* A paragraph nested in a list item shouldn't re-apply the top padding. */
+.prose li p {
+  padding-top: 0;
+  opacity: 1;
+}
+
+.prose hr {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .prose hr {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.prose pre {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  font-family: "JetBrains Mono", "Consolas", ui-monospace, monospace;
+  font-size: 12px;
+  background-color: rgba(127, 127, 127, 0.12);
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  opacity: 1;
+}
+
+/* Inline code chip. Note: the old react-markdown setup branched on an `inline`
+   prop that newer versions of react-markdown no longer pass, so this styling
+   had stopped applying and inline code was rendering as bare monospace. This
+   restores the originally intended appearance. */
+.prose :not(pre) > code {
+  padding-inline: 0.375rem;
+  padding-block: 0.125rem;
+  border-radius: 0.25rem;
+  opacity: 0.9;
+  font-family: "JetBrains Mono", "Consolas", ui-monospace, monospace;
+  font-size: 12px;
+  background-color: rgba(127, 127, 127, 0.15);
+}
+
+/* Images: the wrapper div is created by the rehype plugin because an <img>
+   cannot clip its own hover transform with overflow-hidden. */
+.prose-figure {
+  margin-top: 1.5rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+  transition: all 300ms;
+}
+
+.prose-figure:hover {
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.dark .prose-figure {
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.prose-figure img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  transition: transform 300ms;
+}
+
+.prose-figure:hover img {
+  transform: scale(1.01);
+}
+
+/* Raw <iframe> embeds pass through markdown untouched, so they are styled
+   directly rather than via a wrapper element. */
+.prose iframe {
+  margin-top: 1.5rem;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.dark .prose iframe {
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.prose blockquote {
+  margin-top: 1.25rem;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(0, 0, 0, 0.1);
+  opacity: 0.75;
+}
+
+.dark .prose blockquote {
+  border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+.prose table {
+  margin-top: 1.25rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.prose th,
+.prose td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+.dark .prose th,
+.dark .prose td {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------------------------------------------------------------------------
+   Links inside markdown. Applied by the rehype plugin in astro.config.mjs.
+   --------------------------------------------------------------------------- */
+.prose-link {
+  color: oklch(0.645 0.246 16.439); /* rose-500 */
+  text-decoration: underline;
+  display: inline;
+  transition: opacity 150ms;
+}
+
+.dark .prose-link {
+  color: oklch(0.712 0.194 13.428); /* rose-400 */
+}
+
+.prose-link:hover {
+  opacity: 0.8;
+}
+
+/* ---------------------------------------------------------------------------
+   Hover preview card. Replaces the Radix HoverCard + framer-motion island with
+   a single shared popover element driven by src/scripts/link-preview.ts.
+   --------------------------------------------------------------------------- */
+#link-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  max-width: 280px;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e5e5;
+  background-color: #ffffff;
+  color: #000000;
+  text-align: left;
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  /* --dx tracks the cursor's offset from the link's centre. Animating it
+     through the same transition as the entrance gives the springy follow the
+     framer-motion useSpring used to provide. */
+  --dx: 0px;
+  opacity: 0;
+  transform: translate(var(--dx), 20px) scale(0.6);
+  transition:
+    opacity 150ms ease-out,
+    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.dark #link-preview {
+  border-color: #262626;
+  background-color: #18181b;
+  color: #ffffff;
+}
+
+#link-preview[data-open="true"] {
+  opacity: 1;
+  transform: translate(var(--dx), 0) scale(1);
+  visibility: visible;
+}
+
+/* Screenshot-only previews drop the padding so the image fills the card. */
+#link-preview[data-variant="image"] {
+  padding: 0.25rem;
+  font-size: 0;
+}
+
+#link-preview img {
+  border-radius: 0.5rem;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #link-preview {
+    transition-duration: 1ms;
+  }
+
+  .prose-figure,
+  .prose-figure img {
+    transition: none;
+  }
+}

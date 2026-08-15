@@ -1,0 +1,303 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import LinkPreview from '../components/LinkPreview.astro'
+import Icon from '../components/Icon.astro'
+import { projects, featuredEndpoints } from '../data/projects'
+import { skills, reflections } from '../data/skills'
+import { SITE, FONTS } from '../data/site.js'
+import { getCollection } from 'astro:content'
+
+const posts = await getCollection('blog')
+const postBySlug = new Map(posts.map((p) => [p.id, p]))
+
+const tagline =
+  'Backend engineer based in Enugu, Nigeria. Over the past months at HNG and beyond, I shipped a profile management API with GitHub OAuth and NLP search, a distributed retry engine, and contributed to SkillBridge, a talent assessment platform built in NestJS. I care about systems that are honest, operable, and built to last.'
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfilePage',
+  mainEntity: {
+    '@type': 'Person',
+    name: SITE.name,
+    jobTitle: SITE.role,
+    email: `mailto:${SITE.email}`,
+    url: SITE.url,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Enugu',
+      addressCountry: 'NG',
+    },
+    sameAs: [SITE.github, SITE.linkedin],
+    knowsAbout: skills.map((s) => s.name),
+  },
+}
+---
+
+<BaseLayout
+  title={SITE.title}
+  description={SITE.description}
+  activeNav="home"
+  tagline={tagline}
+  nameIsH1
+  jsonLd={jsonLd}
+>
+  {/* SKILLS */}
+  <section class="border-t border-black/10 dark:border-white/10 pt-8 pb-12">
+    <h2
+      class="text-[24px] leading-[32px]"
+      style="font-weight: 500; letter-spacing: -0.6px"
+    >
+      Backend Skills
+    </h2>
+    <div class="pt-8 flex flex-col gap-4">
+      {
+        skills.map((s) => (
+          <div class="flex items-start justify-between gap-4">
+            <h3 class="text-[14px] leading-[20px]" style="font-weight: 500">
+              {s.name}
+            </h3>
+            <span
+              class="opacity-40 text-[11px] leading-[16px] whitespace-nowrap pt-0.5"
+              style={`font-family: ${FONTS.mono}; letter-spacing: 0.5px`}
+            >
+              {s.project}
+            </span>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  {/* PROJECTS */}
+  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
+    <h2
+      class="text-[24px] leading-[32px]"
+      style="font-weight: 500; letter-spacing: -0.6px"
+    >
+      Projects
+    </h2>
+    <div class="pt-10 flex flex-col gap-12">
+      {
+        projects.map((p) => {
+          const post = postBySlug.get(p.blogSlug)
+          return (
+            <div>
+              <div class="flex items-start justify-between">
+                <h3 class="text-[18px] leading-[28px]" style="font-weight: 500">
+                  {p.name}
+                </h3>
+                <span
+                  class="opacity-40 text-[12px] leading-[16px] pt-2"
+                  style={`font-family: ${FONTS.mono}`}
+                >
+                  {p.year}
+                </span>
+              </div>
+              <p
+                class="opacity-60 text-[14px] leading-[22.75px] pt-2"
+                style="font-weight: 300"
+              >
+                {p.description}
+              </p>
+              <p
+                class="opacity-50 text-[13px] leading-[20px] pt-3"
+                style={`font-family: ${FONTS.mono}; letter-spacing: 0.3px`}
+              >
+                {p.stack.join(' · ')}
+              </p>
+              <p
+                class="opacity-70 text-[13px] leading-[21px] pt-3"
+                style="font-weight: 300"
+              >
+                <span
+                  class="opacity-50 uppercase text-[10px]"
+                  style={`letter-spacing: 1px; font-family: ${FONTS.mono}`}
+                >
+                  My work:{' '}
+                </span>
+                {p.contribution}
+              </p>
+              <div class="flex gap-6 items-center pt-4">
+                {p.live && (
+                  <LinkPreview
+                    url={p.live}
+                    class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+                  >
+                    Live <Icon name="external-link" size={10} />
+                  </LinkPreview>
+                )}
+                {p.source && (
+                  <LinkPreview
+                    url={p.source}
+                    class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+                  >
+                    Source <Icon name="external-link" size={10} />
+                  </LinkPreview>
+                )}
+                {p.extraLinks?.map((link) => (
+                  <LinkPreview
+                    url={link.url}
+                    class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+                  >
+                    {link.label} <Icon name="external-link" size={10} />
+                  </LinkPreview>
+                ))}
+                <LinkPreview
+                  url={`/blog/${p.blogSlug}/`}
+                  class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+                  layout="nav"
+                  eyebrow={post?.data.projectName}
+                  title={post?.data.title}
+                  description={post?.data.summary}
+                >
+                  Blog <Icon name="book-open" size={10} />
+                </LinkPreview>
+              </div>
+            </div>
+          )
+        })
+      }
+    </div>
+  </section>
+
+  {/* FEATURED PROJECT */}
+  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
+    <h2
+      class="text-[24px] leading-[32px]"
+      style="font-weight: 500; letter-spacing: -0.6px"
+    >
+      Featured Project
+    </h2>
+    <p
+      class="opacity-50 text-[12px] uppercase pt-1"
+      style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+    >
+      Insighta Deep Dive
+    </p>
+
+    <div class="pt-8 flex flex-col gap-8">
+      <div>
+        <h3
+          class="text-[13px] uppercase opacity-50"
+          style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+        >
+          The Problem
+        </h3>
+        <p
+          class="opacity-70 text-[14px] leading-[22px] pt-3"
+          style="font-weight: 300"
+        >
+          Managing a growing set of user profiles sourced from external data
+          providers (Genderize, Agify, Nationalize, REST Countries) and making
+          them searchable without forcing users into rigid query syntax.
+        </p>
+      </div>
+
+      <div>
+        <h3
+          class="text-[13px] uppercase opacity-50"
+          style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+        >
+          Architecture
+        </h3>
+        <p
+          class="opacity-70 text-[14px] leading-[22px] pt-3"
+          style="font-weight: 300"
+        >
+          Express.js &rarr; PostgreSQL + Redis &rarr; External APIs. Clients (Web
+          Portal + CLI) pass through CORS, JWT auth, and API versioning
+          middleware before hitting routes. Redis handles sessions and token
+          blacklisting. PostgreSQL stores profiles, users, and attempt history.
+        </p>
+      </div>
+
+      <div>
+        <h3
+          class="text-[13px] uppercase opacity-50"
+          style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+        >
+          Key Endpoints
+        </h3>
+        <div class="pt-3 flex flex-col gap-2">
+          {
+            featuredEndpoints.map(([endpoint, label]) => {
+              const [method, routePath] = endpoint.split(' ')
+              return (
+                <div class="flex items-start justify-between gap-4">
+                  <LinkPreview
+                    url={`${SITE.insightaBaseUrl}${routePath}`}
+                    class="text-[12px] hover:opacity-100 transition-opacity"
+                    style={`font-family: ${FONTS.mono}; opacity: 0.7`}
+                    layout="endpoint"
+                    pad
+                    eyebrow="API Endpoint"
+                    badge={method}
+                    title={routePath}
+                    description={`${label}. Click to visit live deployment or query path directly.`}
+                  >
+                    {endpoint}
+                  </LinkPreview>
+                  <span
+                    class="opacity-40 text-[11px] whitespace-nowrap pt-0.5"
+                    style="font-weight: 300"
+                  >
+                    {label}
+                  </span>
+                </div>
+              )
+            })
+          }
+        </div>
+      </div>
+
+      <div>
+        <h3
+          class="text-[13px] uppercase opacity-50"
+          style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+        >
+          Challenge Solved
+        </h3>
+        <p
+          class="opacity-70 text-[14px] leading-[22px] pt-3"
+          style="font-weight: 300"
+        >
+          Natural language search without AI. I built a rule-based parser that
+          maps plain-text phrases like{' '}
+          <span class="opacity-100" style={`font-family: ${FONTS.mono}; font-size: 12px`}>
+            "female adults from Nigeria under 30"
+          </span>{' '}
+          to parameterised SQL conditions, resolving country names through the
+          REST Countries API to ISO 3166 codes, and mapping age keywords to
+          numeric ranges. No LLMs, no external NLP service.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {/* LEARNING REFLECTION */}
+  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
+    <h2
+      class="text-[24px] leading-[32px]"
+      style="font-weight: 500; letter-spacing: -0.6px"
+    >
+      Learning Reflection
+    </h2>
+    <div class="pt-10 flex flex-col gap-8">
+      {
+        reflections.map((r) => (
+          <div>
+            <h3 class="text-[16px] leading-[24px]" style="font-weight: 500">
+              {r.title}
+            </h3>
+            <p
+              class="opacity-60 text-[14px] leading-[22.75px] pt-2"
+              style="font-weight: 300"
+            >
+              {r.body}
+            </p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>

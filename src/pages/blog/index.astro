@@ -1,0 +1,102 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import LinkPreview from '../../components/LinkPreview.astro'
+import Icon from '../../components/Icon.astro'
+import { SITE, FONTS } from '../../data/site.js'
+import { getCollection } from 'astro:content'
+
+const posts = (await getCollection('blog')).sort(
+  (a, b) => a.data.order - b.data.order,
+)
+
+// Dates are formatted in UTC so a build machine in a negative-offset timezone
+// can't roll a first-of-the-month date back into the previous month.
+const monthYear = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  name: `${SITE.name} - Engineering Blog`,
+  description: SITE.blogDescription,
+  url: new URL('/blog/', SITE.url).href,
+  author: { '@type': 'Person', name: SITE.name },
+  blogPost: posts.map((post) => ({
+    '@type': 'BlogPosting',
+    headline: post.data.title,
+    description: post.data.summary,
+    datePublished: post.data.date.toISOString(),
+    url: new URL(`/blog/${post.id}/`, SITE.url).href,
+  })),
+}
+---
+
+<BaseLayout
+  title={SITE.blogTitle}
+  description={SITE.blogDescription}
+  activeNav="blog"
+  tagline={SITE.blogDescription}
+  jsonLd={jsonLd}
+>
+  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
+    <h1
+      class="text-[24px] leading-[32px]"
+      style="font-weight: 500; letter-spacing: -0.6px"
+    >
+      Blog
+    </h1>
+    <p
+      class="opacity-50 text-[12px] uppercase pt-1"
+      style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+    >
+      Engineering Writeups
+    </p>
+
+    <div class="pt-10 flex flex-col gap-8">
+      {
+        posts.map((post) => (
+          <article class="border border-black/10 dark:border-white/10 p-5">
+            <h2 class="text-[18px] leading-[28px]" style="font-weight: 500">
+              {post.data.title}
+            </h2>
+            <p
+              class="opacity-50 text-[11px] uppercase pt-2"
+              style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+            >
+              {post.data.projectName}
+            </p>
+            <p
+              class="opacity-70 text-[14px] leading-[22px] pt-3"
+              style="font-weight: 300"
+            >
+              {post.data.summary}
+            </p>
+            <div class="pt-4 flex items-center justify-between">
+              <LinkPreview
+                url={`/blog/${post.id}/`}
+                class="opacity-60 hover:opacity-100 transition-opacity text-[10px] uppercase flex items-center gap-1.5"
+                style="letter-spacing: 1px"
+                layout="nav"
+                eyebrow={post.data.projectName}
+                title={post.data.title}
+                description={post.data.summary}
+              >
+                Open writeup <Icon name="external-link" size={10} />
+              </LinkPreview>
+              <time
+                datetime={post.data.date.toISOString()}
+                class="opacity-40 text-[10px] uppercase"
+                style={`letter-spacing: 1px; font-family: ${FONTS.mono}`}
+              >
+                {monthYear.format(post.data.date)}
+              </time>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>

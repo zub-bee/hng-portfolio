@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import LinkPreview from '../components/LinkPreview.astro'
+import Icon from '../components/Icon.astro'
+import { SITE, FONTS } from '../data/site.js'
+---
+
+<BaseLayout
+  title={`Page not found | ${SITE.name}`}
+  description="That page doesn't exist. Head back to the portfolio or the engineering blog."
+  activeNav="home"
+  tagline="That page doesn't exist - it may have moved or the link may be out of date."
+>
+  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
+    <h1
+      class="text-[24px] leading-[32px]"
+      style="font-weight: 500; letter-spacing: -0.6px"
+    >
+      404
+    </h1>
+    <p
+      class="opacity-50 text-[12px] uppercase pt-1"
+      style={`font-family: ${FONTS.mono}; letter-spacing: 1px`}
+    >
+      Page Not Found
+    </p>
+    <div class="flex gap-6 items-center pt-8">
+      <LinkPreview
+        url="/"
+        class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+        style="letter-spacing: 1px"
+        layout="nav"
+        pad
+        eyebrow="Navigation"
+        title="Portfolio Home"
+        description="View Deborah's engineering background, core backend skills, selected HNG projects, and detailed system designs."
+      >
+        Portfolio
+      </LinkPreview>
+      <LinkPreview
+        url="/blog/"
+        class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+        style="letter-spacing: 1px"
+        layout="nav"
+        pad
+        eyebrow="Navigation"
+        title="Engineering Blog"
+        description="Read deep-dives on the retry engine architecture, NestJS API fixes, and building a custom task scheduler."
+      >
+        Blog <Icon name="book-open" size={10} />
+      </LinkPreview>
+    </div>
+  </section>
+</BaseLayout>

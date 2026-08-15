@@ -1,0 +1,311 @@
+---
+import '../styles/global.css'
+import Icon from '../components/Icon.astro'
+import LinkPreview from '../components/LinkPreview.astro'
+import { SITE, FONTS } from '../data/site.js'
+
+interface Props {
+  title: string
+  description: string
+  /** Which nav item is highlighted. */
+  activeNav: 'home' | 'blog'
+  /** Intro paragraph under the name. */
+  tagline: string
+  /**
+   * True only on the home page, where the site owner's name is the page's
+   * primary heading. On blog pages the post (or section) title takes the h1 and
+   * the name renders as a paragraph with identical styling.
+   */
+  nameIsH1?: boolean
+  ogType?: 'website' | 'article'
+  /** Structured data for this page, serialised into a JSON-LD script tag. */
+  jsonLd?: Record<string, unknown>
+}
+
+const {
+  title,
+  description,
+  activeNav,
+  tagline,
+  nameIsH1 = false,
+  ogType = 'website',
+  jsonLd,
+} = Astro.props
+
+const path = Astro.url.pathname.endsWith('/')
+  ? Astro.url.pathname
+  : `${Astro.url.pathname}/`
+const canonical = new URL(path, SITE.url).href
+const ogImage = new URL(SITE.ogImage, SITE.url).href
+
+const NameTag = nameIsH1 ? 'h1' : 'p'
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="author" content={SITE.name} />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={`${SITE.name} - Engineering Blog`}
+      href={new URL('/rss.xml', SITE.url).href}
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    {
+      jsonLd && (
+        <script
+          type="application/ld+json"
+          is:inline
+          set:html={JSON.stringify(jsonLd)}
+        />
+      )
+    }
+
+    {/*
+      Runs before first paint: applies the stored theme so there is no flash,
+      and rewrites legacy #/blog/<slug> links to real paths. A server redirect
+      cannot do the second job - the fragment is never sent to the server.
+    */}
+    <script is:inline>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('theme')
+          document.documentElement.classList.toggle(
+            'dark',
+            stored ? stored === 'dark' : true,
+          )
+        } catch (e) {
+          document.documentElement.classList.add('dark')
+        }
+
+        var h = location.hash
+        if (h.slice(0, 2) === '#/') {
+          var parts = h.slice(2).split('/')
+          var target = '/'
+          if (parts[0] === 'blog') {
+            target = parts[1]
+              ? '/blog/' + decodeURIComponent(parts[1]) + '/'
+              : '/blog/'
+          }
+          if (location.pathname !== target) location.replace(target)
+          else history.replaceState(null, '', target)
+        }
+      })()
+    </script>
+
+    <script>
+      import '../scripts/main'
+      import { inject } from '@vercel/analytics'
+      inject()
+    </script>
+  </head>
+
+  <body>
+    <div
+      class="relative min-h-screen w-full bg-white text-black dark:bg-black dark:text-white transition-colors duration-300"
+      style={`font-family: ${FONTS.sans}`}
+    >
+      <div
+        aria-hidden="true"
+        data-scroll-gradient
+        class="pointer-events-none fixed inset-x-0 bottom-0 h-[70vh] z-0 transition-opacity duration-300"
+        style="opacity: 0"
+      >
+      </div>
+
+      <div class="relative z-10 mx-auto w-full max-w-[640px] px-6 sm:px-8">
+        {/* HERO */}
+        <section class="pt-28 pb-12">
+          <div class="flex items-center justify-between">
+            <div>
+              <NameTag
+                style={`font-family: ${FONTS.script}; letter-spacing: -1.2px`}
+                class="text-[48px] leading-[48px]"
+              >
+                {SITE.name}
+              </NameTag>
+              <div class="mt-5 flex items-center gap-5">
+                <LinkPreview
+                  url="/"
+                  class={`text-[10px] uppercase transition-opacity ${activeNav === 'home' ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
+                  style={`letter-spacing: 1px; font-family: ${FONTS.mono}`}
+                  layout="nav"
+                  pad
+                  eyebrow="Navigation"
+                  title="Portfolio Home"
+                  description="View Deborah's engineering background, core backend skills, selected HNG projects, and detailed system designs."
+                >
+                  Portfolio
+                </LinkPreview>
+                <LinkPreview
+                  url="/blog/"
+                  class={`text-[10px] uppercase transition-opacity flex items-center gap-1.5 ${activeNav === 'blog' ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
+                  style={`letter-spacing: 1px; font-family: ${FONTS.mono}`}
+                  layout="nav"
+                  pad
+                  eyebrow="Navigation"
+                  title="Engineering Blog"
+                  description="Read deep-dives on the retry engine architecture, NestJS API fixes, and building a custom task scheduler."
+                >
+                  Blog <Icon name="book-open" size={11} />
+                </LinkPreview>
+              </div>
+            </div>
+            <button
+              type="button"
+              data-theme-toggle
+              aria-label="Toggle theme"
+              class="opacity-40 hover:opacity-100 transition-opacity duration-200 p-1"
+            >
+              <Icon name="sun" size={14} class="icon-sun" />
+              <Icon name="moon" size={14} class="icon-moon" />
+            </button>
+          </div>
+
+          <p
+            class="opacity-60 mt-6 text-[17px] leading-[27.625px]"
+            style="font-family: 'Inter', sans-serif; font-weight: 500"
+          >
+            {tagline}
+          </p>
+
+          <div class="flex gap-6 items-center pt-8">
+            <LinkPreview
+              url={SITE.github}
+              ariaLabel="GitHub"
+              class="opacity-40 hover:opacity-100 transition-opacity duration-200"
+              layout="social"
+              pad
+              icon="github"
+              iconLabel="GitHub Profile"
+              title={SITE.githubHandle}
+              description="Explore repositories, contributions, system architecture design examples, and other project codebases."
+            >
+              <Icon name="github" size={16} />
+            </LinkPreview>
+            <LinkPreview
+              url={SITE.linkedin}
+              ariaLabel="LinkedIn"
+              class="opacity-40 hover:opacity-100 transition-opacity duration-200"
+              layout="social"
+              pad
+              icon="linkedin"
+              iconLabel="LinkedIn Profile"
+              title={SITE.name}
+              description="Connect on LinkedIn. Open to discussions, roles, and professional opportunities in backend engineering."
+            >
+              <Icon name="linkedin" size={16} />
+            </LinkPreview>
+            <LinkPreview
+              url={`mailto:${SITE.email}`}
+              ariaLabel="Email"
+              class="opacity-40 hover:opacity-100 transition-opacity duration-200"
+              layout="social"
+              pad
+              icon="mail"
+              iconLabel="Email Direct"
+              title={SITE.email}
+              breakAll
+              description="Send a direct inquiry for roles, backend system design consulting, and engineering collaborations."
+            >
+              <Icon name="mail" size={16} />
+            </LinkPreview>
+          </div>
+        </section>
+
+        <slot />
+
+        {/* CONTACT */}
+        <section class="pt-20 pb-10">
+          <div class="flex flex-col items-center">
+            <h2
+              class="contact-heading text-[60px] leading-[60px] text-center"
+              style="font-weight: 500; letter-spacing: -3px"
+            >
+              Let's build.
+            </h2>
+            <p
+              class="text-[18px] leading-[28px] text-center pt-4 max-w-[384px]"
+              style="font-weight: 300"
+            >
+              Open to backend engineering roles and collaborations. {
+                SITE.location
+              } &middot; UTC+1.
+            </p>
+            <button
+              type="button"
+              data-copy-email={SITE.email}
+              class="mt-12 flex items-center gap-4 pb-2.5 border-b-2 border-black dark:border-white w-full max-w-[404px] justify-center"
+            >
+              <span
+                class="text-[24px] leading-[32px] text-center"
+                style="font-weight: 500"
+              >
+                {SITE.email}
+              </span>
+              <Icon name="check" size={20} class="icon-check" />
+              <Icon name="copy" size={20} class="icon-copy opacity-40" />
+            </button>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer
+          class="border-t border-black/10 dark:border-white/10 pt-10 pb-10 flex items-center justify-between"
+        >
+          <p
+            class="text-[10px] uppercase leading-[15px]"
+            style="font-weight: 500; letter-spacing: 1px"
+          >
+            &copy; 2026 {SITE.name}.
+            <br />
+            All Rights Reserved.
+          </p>
+          <button
+            type="button"
+            data-back-to-top
+            class="flex gap-3 items-center group"
+          >
+            <span
+              class="text-[10px] uppercase"
+              style="font-weight: 500; letter-spacing: 1px"
+            >
+              Back to Top
+            </span>
+            <span
+              class="rounded-full size-7 border border-black dark:border-white flex items-center justify-center group-hover:-translate-y-0.5 transition-transform"
+            >
+              <Icon name="arrow-up" size={14} />
+            </span>
+          </button>
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>
