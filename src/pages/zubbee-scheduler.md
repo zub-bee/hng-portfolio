@@ -1,3 +1,11 @@
+---
+title: "The Highlight of my HNG Experience"
+projectName: "Zubbee Scheduler & SkillBridge API"
+summary: "A technical blog post reflecting on two key internship milestones: building the custom Zubbee background job scheduler and resolving production issues in the collaborative SkillBridge API."
+date: 2026-06-01
+order: 4
+---
+
 During my time in the HNG internship, I worked on several challenging individual stages and collaborated on team projects. Out of all the tasks, two specific milestones stood out as the most technically demanding and rewarding: the Zubbee Scheduler (individual stage) and the SkillBridge API (team task). Here is the technical breakdown of both systems, what broke, and what I learned from them.
 
 # Zubbee - Scheduler
@@ -14,7 +22,7 @@ Production apps often need to process time-consuming asynchronous tasks (like se
 
 My biggest strength, which I currently attribute to the system design task in stage 4, was understanding the requirements of a system and finding out the simplest way to approach it. A winning solution is a simple one. As said in this conversation with Bassem Dghaidi on Beyond Coding, “you can do a lot with very little.” He breaks down how to think about system design when real business impact is on the line. You can pause and check it out.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/LeUUxLRdvho?si=MwqhnlN-FA8XM8cd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/LeUUxLRdvho?si=MwqhnlN-FA8XM8cd" title="Bassem Dghaidi on Beyond Coding: system design when business impact is on the line" frameborder="0" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 For me, approaching a problem, I ask what the requirements are and what the simplest system can be to fit those requirements. Having to do system design in stage 4, I designed my own approach to technical problems.
 

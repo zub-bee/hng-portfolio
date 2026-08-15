@@ -1,3 +1,11 @@
+---
+title: "Building a Retry Engine with Backoff, Jitter, and Dead Letters"
+projectName: "HTTP Retry Engine"
+summary: "Designing a robust retry loop, modeling attempt history, and handling failure states safely."
+date: 2026-05-01
+order: 2
+---
+
 # Goal
 
 The goal of this project was to design and implement a background HTTP retry service. Clients submit a request, and a worker retries it automatically on failure using exponential backoff with jitter. Execution halts when the request succeeds, hits a permanent failure status code (4xx), or exhausts the maximum retry limit.
@@ -31,11 +39,11 @@ Correctness was validated using a mock server on port 3001 configured to fail th
 
 ## Screenshots
 
-![alt text](images/image.png)
+![Retry engine test run showing a request moving through retry attempts](/images/image.png)
 
-![alt text](images/image-1.png)
+![Attempt history logged per request with status codes and timestamps](/images/image-1.png)
 
-![alt text](images/image-2.png)
+![Request reaching completed status after the mock server recovers](/images/image-2.png)
 
 # What I Learned
 

@@ -1,3 +1,11 @@
+---
+title: "How I Designed and Shipped Insighta Profiles API"
+projectName: "Insighta Profiles API, Web Portal & CLI Tool"
+summary: "Architecture decisions, OAuth + PKCE implementation details, and what changed after scaling the API design."
+date: 2026-04-01
+order: 1
+---
+
 # Quick Context
 
 Insighta Profiles API is a simulated high-performance demographic intelligence engine built as a hands-on backend engineering case study to practice production-grade system design. It mimics a real-world platform for processing, querying, and managing large-scale demographic datasets. Over three stages of development, I built the relational profile database, added a rule-based Natural Language Query (NLQ) engine, established a secure RBAC system with GitHub OAuth + PKCE, and optimized the platform to handle concurrent traffic with 1M+ profiles and large-scale CSV ingestion of up to 500,000 rows.

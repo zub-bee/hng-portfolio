@@ -1,3 +1,11 @@
+---
+title: "Fixing Real Production Pain in SkillBridge API"
+projectName: "SkillBridge API"
+summary: "From URL hallucination fixes to employer verification and assessment flow stability."
+date: 2026-05-01
+order: 3
+---
+
 # Project Context
 
 The backend API for SkillBridge, an AI-powered talent assessment and employer-candidate matching platform built collaboratively using NestJS, TypeScript, PostgreSQL, and TypeORM.
