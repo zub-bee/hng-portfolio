@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import { blogPosts } from "../content/blogPosts";
 import { LinkPreview } from "./components/ui/link-preview";
 
 const mono = "'JetBrains Mono', 'Consolas', ui-monospace, monospace";
@@ -31,532 +35,144 @@ type Project = {
   extraLinks?: { label: string; url: string }[];
 };
 
-type BlogPost = {
-  slug: string;
-  title: string;
-  projectName: string;
-  summary: string;
-  content: string;
+const normalizeMarkdownImageUrl = (src?: string) => {
+  if (!src) return src;
+  if (
+    src.startsWith("/") ||
+    src.startsWith("http") ||
+    src.startsWith("data:")
+  ) {
+    return src;
+  }
+  return `/${src}`;
 };
 
-const blogPosts: BlogPost[] = [
-  {
-    slug: "insighta-profiles-api",
-    title: "How I Designed and Shipped Insighta Profiles API",
-    projectName: "Insighta Profiles API, Web Portal & CLI Tool",
-    summary:
-      "Architecture decisions, OAuth + PKCE implementation details, and what changed after scaling the API design.",
-    content: `
-
-# Quick Context
-Insighta Profiles API is a simulated high-performance demographic intelligence engine built as a hands-on backend engineering case study to practice production-grade system design. It mimics a real-world platform for processing, querying, and managing large-scale demographic datasets. Over three stages of development, I built the relational profile database, added a rule-based Natural Language Query (NLQ) engine, established a secure RBAC system with GitHub OAuth + PKCE, and optimized the platform to handle concurrent traffic with 1M+ profiles and large-scale CSV ingestion of up to 500,000 rows.
-
-# Problem Statement
-To simulate realistic growth constraints on demographic intelligence services, the challenge required solving several key system problems:
-- Clients cannot filter or query profiles across multiple combined conditions efficiently.
-- Clients lack a way to express queries in natural language, forcing them to use complex parameters.
-- Standard authentication is insufficient for both browser-based and command-line clients.
-- Remotely-hosted database latency and repeated identical queries under heavy load threaten availability.
-- Operations require bulk CSV data uploads (up to 500,000 rows) without degrading concurrent read query performance.
-
-# Architecture Decisions
-- **Express.js + PostgreSQL + Redis**: I utilized PostgreSQL to store structured profile records with custom indexes, paired with Redis to handle session storage, access token blacklisting, and response caching. Redis caching cuts latency to under 10ms for repeated queries, shielding PostgreSQL from simulated read pressure under load.
-- **Unified Auth with GitHub OAuth + PKCE (S256)**: To support both the Web Portal and the CLI securely under one auth provider, I implemented GitHub OAuth 2.0 using the Proof Key for Code Exchange (PKCE) flow.
-  - **Trade-off**: The Web Portal stores short-lived tokens in HTTP-only, Secure, SameSite cookies to protect against XSS and CSRF. The CLI, which has no cookies, exchanges the PKCE code and verifier via a dedicated CLI callback and stores credentials locally in \`~/.insighta/credentials.json\`, communicating via the \`Authorization: Bearer\` header.
-- **Rule-Based Natural Language Query Parser**: To support search without the overhead of slow, expensive, and non-deterministic LLMs, I built a rule-based parser that maps plain English queries (e.g., *"young males from nigeria"*) to structured SQL filter criteria.
-
-# Implementation Highlights
-- **Canonical Query Normalization**: Users search for the same data in different ways (e.g., *"Nigerian females between 20 and 45"* and *"Women aged 20-45 living in Nigeria"*). To prevent redundant cache misses, I implemented a normalization middleware. The parser translates any query into a canonical filter object with sorted keys. This object is hashed using SHA-1 to generate a deterministic cache key. If the hash matches, Redis serves the response instantly, bypassing PostgreSQL entirely.
-- **Memory-Efficient Streaming CSV Ingest**: Inserting 500,000 rows could easily crash a server if fully loaded into memory. I constructed a pipeline where \`busboy\` streams \`multipart/form-data\` uploads, piping the stream into \`csv-parse\` as an async iterator. The parser processes rows in chunks, validates them, and pushes them in 500-row batches using a multi-row \`INSERT ... ON CONFLICT (name) DO NOTHING\` statement.
-- **Role-Based Access Control**: Standardized middlewares enforce \`admin\` and \`analyst\` scopes. Analysts are restricted to query and dashboard endpoints, while Admins retain full write operations and CSV export permissions.
-
-# Challenges and Fixes
-- **The Challenge (Transient Database Errors and Memory Bloat during CSV Uploads)**: During early testing, large CSV file uploads caused memory spikes and blocked all read query endpoints, resulting in server timeouts.
-- **How I Debugged It**: I used Node's built-in heap profile analyzer and database logs. I realized that loading the entire CSV into memory before parsing, coupled with single-row SQL inserts, exhausted the connection pool and led to full-table write-locks.
-- **Final Fix**: I refactored the CSV upload handler to use streaming parsing. I established a batch buffer of 500 records. Using \`pg.Pool\` connection pooling and batch inserts dramatically reduced query overhead. By writing a custom deduplication \`Set\` for names within each batch and using \`ON CONFLICT DO NOTHING\`, I prevented database lock contention. The ingestion process now runs concurrently without degrading the read endpoints' performance.
-
-# Outcomes
-- **Query Latency Reduction**: P50 query latency dropped from **515ms** (unindexed, no cache) to **450ms** with Redis caching, and down to under **10ms** on hot cache hits.
-- **Resource Consumption**: CSV ingestion processes files up to 500,000 rows with a memory footprint capped under **100MB**, achieving a throughput of over **5,000 rows/second** while maintaining 99.9% uptime for read requests.
-- **Zero-Interruption Partial Ingestion**: Malformed rows, duplicate names, or database failures within a chunk are logged and skipped, allowing valid rows to insert successfully and returning a detailed execution summary.
-
-# Lessons Learned
-- **Plan for Scale Early**: Designing composite indexes (like \`(country_id, gender)\`) and setting up connection pools before scaling the database saved significant effort when the dataset reached 1M+ rows.
-- **Deter Deterministic Caching**: Caching raw strings is a trap. Normalizing the underlying filters before caching is critical to achieving high cache hit rates in demographic search systems.
-- **Simplicity Wins**: Avoiding LLMs for parsing and instead writing a deterministic regex-based NLP parser made the system incredibly fast, cheap, and robust.`,
-  },
-  {
-    slug: "http-retry-engine",
-    title: "Building a Retry Engine with Backoff, Jitter, and Dead Letters",
-    projectName: "HTTP Retry Engine",
-    summary:
-      "Designing a robust retry loop, modeling attempt history, and handling failure states safely.",
-    content: `
-
-# Goal
-The goal of this project was to design and implement a background HTTP retry service. Clients submit a request, and a worker retries it automatically on failure using exponential backoff with jitter. Execution halts when the request succeeds, hits a permanent failure status code (4xx), or exhausts the maximum retry limit.
-
-# Failure Model
-- **Permanent Failures (4xx)**: A 4xx status code means the request itself is malformed or invalid (e.g., bad URL, missing authorization, bad request body). Since retrying will not resolve the issue, these requests fail permanently on the first attempt and are not retried.
-- **Retryable Failures (5xx & Network Errors)**: A 5xx status code indicates a temporary server-side issue (crash, timeout, overloading) or network disruptions. These requests are eligible for retry as the target server is expected to recover.
-
-# Core Design
-- **Worker Loop**: A background worker polling every 500ms queries the SQLite database for pending or retrying requests whose scheduled retry time (\`nextRetryAt\`) has elapsed.
-- **Attempt Tracking**: Every request execution is logged in a separate \`attempts\` database table, capturing attempt numbers, status codes, timestamps, and error logs for detailed audits.
-- **Dead-Letter Queue (DLQ)**: If a request fails repeatedly and the attempt count exceeds the configurable limit (\`maxRetries\`, defaulting to 5), it is marked as \`failed\` and moved to a dead-letter state to prevent infinite loops.
-
-# Backoff Strategy
-- **Formula**: The wait time for the next retry increases exponentially with each attempt, using the formula:
-  \`delay = backoffMs * (2 ^ attempt) * jitter\`
-- **Jitter**: To resolve the "thundering herd" problem where multiple clients retry at the exact same millisecond, a random multiplier between 0.8 and 1.2 is applied. This spreads retries out naturally.
-
-# API Surface
-- \`POST /request\`: Submits a request to be executed (supports \`url\`, \`method\`, optional \`body\`, optional \`maxRetries\`, and optional \`backoffMs\`).
-- \`GET /requests/:id\`: Retrieves the current request status along with its full attempt logs history.
-- \`GET /requests?status=\`: Queries and filters submitted requests by status (\`pending\`, \`retrying\`, \`completed\`, \`failed\`).
-
-# Testing and Validation
-Correctness was validated using a mock server on port 3001 configured to fail three times consecutively before succeeding. A test script registered requests and polled the retry engine every second, verifying that the worker successfully navigated the retry cycle and ultimately marked the request as completed.
-
-## Screenshots
-![alt text](images/image.png)
-
-![alt text](images/image-1.png)
-
-![alt text](images/image-2.png)
-
-# What I Learned
-## Technical Highlights & SQLite Params
-To handle optional properties (\`maxRetries\` and \`backoffMs\`), I replaced positional SQLite queries with named database parameters (\`@param\`). Using objects made it simple to inject default fallbacks without writing complex if-else logic:
-
-\`\`\`js
-// Positional method — every ? must match the exact order of values
-// Handling optional fields meant branching logic just to build the right array
-const insert = db.prepare(
-  "INSERT INTO requests (url, method, maxRetries, backoffMs) \\\\
-  VALUES (?, ?, ?, ?)",
-);
-insert.run(url, method, maxRetries ?? 5, backoffMs ?? 1000);
-
-// Named params method — use @name placeholders and pass an object
-// Now ?? defaults live right in the object, no branching needed
-const insert = db.prepare(
-  "INSERT INTO requests (url, method, maxRetries, backoffMs) \\\\
-  VALUES (@url, @method, @maxRetries, @backoffMs)",
-);
-insert.run({
-  url,
-  method,
-  maxRetries: maxRetries ?? 5,
-  backoffMs: backoffMs ?? 1000,
-});
-\`\`\`
-
-## Developer growth & architectural value
-This was my first time implementing standalone background workers. I learned how to build robust, non-blocking integrations for third-party endpoints. In a production scenario (such as sending OTP SMS via an external provider), routing these calls through a retry engine ensures that service outages or temporary rate limits do not impact core user flows like registration. While enterprise libraries like BullMQ solve this at scale, constructing this lightweight version deepened my understanding of background task execution and distributed failure handling.
-
-* **Resources Consulted**: [validator.js](https://github.com/validatorjs/validator.js)`,
-  },
-  {
-    slug: "skillbridge-api",
-    title: "Fixing Real Production Pain in SkillBridge API",
-    projectName: "SkillBridge API",
-    summary:
-      "From URL hallucination fixes to employer verification and assessment flow stability.",
-    content: `
-    
-# Project Context
-
-The backend API for SkillBridge, an AI-powered talent assessment and employer-candidate matching platform built collaboratively using NestJS, TypeScript, PostgreSQL, and TypeORM.
-
-The platform connects candidates and employers by running AI-driven skill assessments to validate the talent pool while giving employers an opportunity to find them through job postings, custom assessments and offers. However, the system had critical stability issues while we were building, and I contributed to fixing those issues while implementing new features.
-
-# Key Issues I Tackled
-- LLM generated fake reference links (URL hallucinations) during the AI guidance report after assessments and when prompted to generate resource links for talent.
-- Long page-load wait times on the resource page, leading to a poor user experience.
-- Designing an employer verification pipeline and trust layer to prevent unverified outreach to talent.
-- Refactoring skill assessments to reduce wait times associated with AI scoring of open text.
-
-# Technical Deep Dive
-I initially integrated resource links for the AI guidance layer for the completion result of advanced assessments and the general resources page independent of assessment results, but the generated resources from AI were usually hallucinated, and so most of the links were broken. To solve this issue, I built a validation service leveraging the YouTube Data API v3 and Serper.dev Google Search to check and filter AI-generated resources, swapping out hallucinated links. This was a non-breaking change that added a layer of verification to the AI-generated resources. For every title, description and link text generated, the title and description are used as a query to fetch data from either API depending on whether it was a video or not. Because the title and description were usually detailed, it mostly worked. Mostly. After many iterations, we came close to only 5% broken links compared to 95% before.
-
-Another issue with the AI-generated resource links was the long wait times on the page, which were really bad for UX. I added configurable timeouts with background cache warming so that for any new change in the talent profile, such as completing onboarding or an assessment, the generation service is automatically triggered in the background and saved into the database so that when the user lands on the resource page, the page load is instant. This improved the overall customer experience. As previously stated, page load wait time moved from an average of 3 minutes to none.
-
-I designed the employer verification pipeline, implementing SSRF-hardened reachability checks for company websites and LinkedIn verification gates to prevent unverified outreach to talent. Among many others were refactoring skill assessments to strict MCQ scoring to reduce the wait time that came from AI trying to score open text. Since we already had rubric scoring for the MCQ, assessment results became instant, going from about 3 mins previously.
-
-# Collaboration and PR Flow
-Working on SkillBridge taught me how to collaborate effectively in a larger codebase. Enforcing API standards (response normalisation, snake_case conversion) and contributing 33+ pull requests reinforced my developer discipline. The complexity of working within a team. I also learnt the importance of API contracts and how creating them enforces good API design practices and conventions.
-
-# Impact
-- Reduced broken AI-generated resource links from 95% to only 5%.
-- Brought resource page load times down from 3 minutes to instant via cache warming.
-- Designed employer verification gates to secure outreach and prevent unverified actions.
-- Assessment result generation went from 3 minutes to instant by moving to MCQ scoring.
-
-# Reflections
-Working on SkillBridge taught me how to collaborate effectively in a larger codebase. Resolving real-world security vulnerabilities, optimising performance, and handling LLM hallucination issues gave me a strong appreciation for defensive API design.
-
-Thinking about how my new feature could break the product or make it was good paranoia. I also learnt more than just writing code. I learnt how to use AI-assisted programming in the best way to both meet the demands of my team in increasing my productivity and also learn. I was in the best balance of speed and growth. My biggest lesson was the understanding that people are the major thing in every product and not just the thing. I learnt how interactions and communication make or break a product. Without putting myself out there to take chances and contribute, I will never be a productive developer. Basically, you're not that special (maybe genuises), and nobody is going to pause their own business to ask for your contributions. They just value who gives it first. Not fair but who cares? Personally, this was the highlight of my HNG experience.
-
-I picked these handful of tasks among many others because these were the times I thought about the product like my own. These were also times where I made the decisions without having to be told. I recently read an article that I agree with and changed my perspective on how to work in teams together on a product. The best engineers think about the product and they're not just there to be assigned tasks. They're involved in the decision process they attend all the meetings. They know what's happening across the other teams like marketing or finance. What are the numbers, what are the customer complaints? I decided to reach towards that during this internship and I have alot more to say about how it helps in the building process. Having an understanding of all the moving parts outside of just the code is what enabled me to think passionately about what the product needs. These were implementations that I wasn't asked to do simply because I tested the product and I invested my mind into solving as many issues as I could. I think that's the cheat code to being a builder others would like to work with. It made it easier to work and I'm going to keep applying this in other teams too. The ability to code with an understanding of all the moving parts is my highlight of this experience.`,
-  },
-  {
-    slug: "zubbee-scheduler",
-    title: "The Highlight of my HNG Experience",
-    projectName: "Zubbee Scheduler & SkillBridge API",
-    summary:
-      "A technical blog post reflecting on two key internship milestones: building the custom Zubbee background job scheduler and resolving production issues in the collaborative SkillBridge API.",
-    content: `
-
-During my time in the HNG internship, I worked on several challenging individual stages and collaborated on team projects. Out of all the tasks, two specific milestones stood out as the most technically demanding and rewarding: the Zubbee Scheduler (individual stage) and the SkillBridge API (team task). Here is the technical breakdown of both systems, what broke, and what I learned from them.
-
-
-# Zubbee - Scheduler
-
-## What it was
-We were asked to build a background scheduler that is lightweight and self-contained with priority handling using a min heap, automatic retries, a dead-letter queue (DLQ) for failed tasks, DAG-based task dependency workflows, and a live monitoring dashboard.
-
-## The problem it was solving
-Production apps often need to process time-consuming asynchronous tasks (like sending notifications or parsing large files) without blocking the main event loop. While robust solutions like BullMQ exist, they require heavy external dependencies like Redis. A custom background scheduler can solve this by providing priority queuing, timing-wheel execution, and workflow orchestration for an internal developer team.
-
-## How I approached it
-My biggest strength, which I currently attribute to the system design task in stage 4, was understanding the requirements of a system and finding out the simplest way to approach it. A winning solution is a simple one. As said in this conversation with Bassem Dghaidi on Beyond Coding, “you can do a lot with very little.” He breaks down how to think about system design when real business impact is on the line. You can pause and check it out.
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/LeUUxLRdvho?si=MwqhnlN-FA8XM8cd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-
-For me, approaching a problem, I ask what the requirements are and what the simplest system can be to fit those requirements. Having to do system design in stage 4, I designed my own approach to technical problems.
-
-In my tribute to simplicity, I built this background scheduler on my already existing retry engine. Part of the requirements of this scheduler, the retry engine already did some of that, so I thought it made sense to just build on it, which cost me a little down the line.
-
-Here are the requirements and how I implemented them.
-1. **An alternative scheduling algorithm must be benchmarked against the heap and documented.** Among the choices given of Timing wheels, Indexed priority queues and Skip lists, I chose the timing wheel algorithm because it seemed like the most straightforward. I’d like to pretend like it was because of good system design principles, but I was on a short timeline so… I implemented the timing algorithm a bit differently, though. Although it was a scheduling algorithm, I included priority-based scheduling in its functionality so that it still worked the same way the heap does. That meant deciding where to place it in the timing wheel without having to compare it with every element as the heap does. After the benchmark test was done, surprised to say it was actually way faster to insert elements than the heap data structure. That was a big discovery.
-2. **Duplication prevention. In a multiple-worker system, no two workers must pick a job at the same time.** In this case, I decided to use a simple lockedAt column on every job to indicate when a job has been started for processing, but this wasn’t a failsafe eventually. More on that later.
-3. **Starvation prevention: Low-priority jobs should not wait forever while high-priority jobs keep jumping the queue. So the longer a job sits, the higher its effective priority becomes.** My approach was simply checking the time differences of each of the jobs first before comparing jobs by their created time by their priority, their scheduled time and their created time. If a job had stayed in the queue for more than 2 mins (my threshold) then it would be picked over the other job.
-4. **DAG Workflow: The relationship between jobs must be a directional acyclic graph.** To keep this relationship, I created a table to store jobs and their dependencies. Each jobId had a job dependency id, and both were primary keys in the table, meaning that their relationship cannot be repeated.
-
-## What broke and how I fixed it
-My biggest issue was when I realised the database locking tradeoff of SQLite. SQLite by nature, prevents concurrent reads and writes on a database file such that one read operation blocks another write operation. This could cause problems because if both the Express API and the background worker were constantly querying and modifying the same SQLite database, they could repeatedly run into \`SQLITE_BUSY\` database lock errors under load.
-My fix was to update the SQLite connection settings to enable Write-Ahead Logging (\`journal_mode=WAL\`). This allowed multiple processes to perform concurrent reads while a write transaction was active, eliminating lock contention.
-
-However…
-
-The issue wasn’t completely solved because although reads and writes can happen concurrently, two writes were still blocked at the same time, meaning a write to the database file blocks another write. This could lead to issues in the system.
-I acknowledged this tradeoff and utilised it to create a failsafe duplicate prevention for my system. For the multiple-worker system, when a job of interest is queried from the database, it must be set to processing in one transaction, thereby preventing any reads to the database. That way, two workers would never read the same job, preventing duplicate actions on one job.
-That leaves other issues like the Express server operations and bigger issues for 3-5 workers. I accepted this tradeoff to keep things simple in my system. It was the simplest and most efficient possible solution to the problem, which is good enough.
-
-## What I took away from it
-Building this taught me how scheduling data structures are designed from the ground up. I learned how to balance memory and time complexity (benchmarking heap vs. timing wheel) and how SQLite handles concurrency in real-world environments. It has introduced me to the concept of data structures and algorithms and how they translate to systems in our everyday products. I got to learn how to implement two of those, which was cool. Above all, I saw how following the simplest method can turn out well and make better solutions.
-
-## Why I picked it
-I chose this project because it forced me to implement core computer science data structures (like Heaps and circular Timing Wheels) instead of just relying on ready-made npm packages, teaching me the underlying mechanics of background workers. It was almost my most challenging and most fun because there were many moving parts that needed to be considered. Throughout every piece of the system, I thought about the requirements and how they all work together. If one piece fails, the others are more likely to.
-
----
-
-# The SkillBridge API
-
-## What it was
-The backend API for SkillBridge, an AI-powered talent assessment and employer-candidate matching platform built collaboratively using NestJS, TypeScript, PostgreSQL, and TypeORM.
-
-## The problem it was solving
-The platform connects candidates and employers by running AI-driven skill assessments to validate the talent pool while giving employers an opportunity to find them through job postings, custom assessments and offers. However, the system had critical stability issues while we were building, and I contributed to fixing those issues while implementing new features. For example, the LLM frequently generated fake reference links (URL hallucinations) during the AI guidance report after assessments and when prompted to generate resource links for talent. Some of the features I built are the employer trust and verification layer to prevent unverified employers from initiating actions, and the employer-talent offer and shortlist feature, where talent can be shortlisted and sent an offer. Both receive notifications of activity related to the job offer.
-
-## Some of my contributions: what broke and how I fixed it
-
-I initially integrated resource links for the AI guidance layer for the completion result of advanced assessments and the general resources page independent of assessment results, but the generated resources from AI were usually hallucinated, and so most of the links were broken. To solve this issue, I built a validation service leveraging the YouTube Data API v3 and Serper.dev Google Search to check and filter AI-generated resources, swapping out hallucinated links. This was a non-breaking change that added a layer of verification to the AI-generated resources. For every title, description and link text generated, the title and description are used as a query to fetch data from either API depending on whether it was a video or not. Because the title and description were usually detailed, it mostly worked. Mostly. After many iterations, we came close to only 5% broken links compared to 95% before.
-
-Another issue with the AI-generated resource links was the long wait times on the page, which were really bad for UX. I added configurable timeouts with background cache warming so that for any new change in the talent profile, such as completing onboarding or an assessment, the generation service is automatically triggered in the background and saved into the database so that when the user lands on the resource page, the page load is instant. This improved the overall customer experience. As previously stated, page load wait time moved from an average of 3 minutes to none.
-
-I designed the employer verification pipeline, implementing SSRF-hardened reachability checks for company websites and LinkedIn verification gates to prevent unverified outreach to talent. Among many others were refactoring skill assessments to strict MCQ scoring to reduce the wait time that came from AI trying to score open text. Since we already had rubric scoring for the MCQ, assessment results became instant, going from about 3 mins previously.
-
-## My grave lessons
-Working on SkillBridge taught me how to collaborate effectively in a larger codebase. Enforcing API standards (response normalisation, snake_case conversion) and contributing 33+ pull requests reinforced my developer discipline. The complexity of working within a team. Resolving real-world security vulnerabilities, optimising performance, and handling LLM hallucination issues gave me a strong appreciation for defensive API design.
-Thinking about how my new feature could break the product or make it was good paranoia. I also learnt more than just writing code. I learnt how to use AI-assisted programming in the best way to both meet the demands of my team in increasing my productivity and also learn. I was in the best balance of speed and growth. My biggest lesson was the understanding that people are the major thing in every product and not just the thing. I learnt how interactions and communication make or break a product. Without putting myself out there to take chances and contribute, I will never be a productive developer. Basically, you're not that special (maybe genuises), and nobody is going to pause their own business to ask for your contributions. They just value who gives it first. Not fair but who cares? Personally, this was the highlight of my HNG experience.
-
-## Why I picked it
-I picked these handful of tasks among many others because these were the times I thought about the product like my own. These were also times where I made the decisions without having to be told. I recently read an article that I agree with and changed my perspective on how to work in teams together on a product. The best engineers think about the product and they're not just there to be assigned tasks. They're involved in the decision process they attend all the meetings. They know what's happening across the other teams like marketing or finance. What are the numbers, what are the customer complaints? I decided to reach towards that during this internship and I have alot more to say about how it helps in the building process. Having an understanding of all the moving parts outside of just the code is what enabled me to think passionately about what the product needs. These were implementations 
-that I wasn't asked to do simply because I tested the product and I invested my mind into solving as many issues as I could. I think that's the cheat code to being a builder others would like to work with. It made it easier to work and I'm going to keep applying this in other teams too. The ability to code with an understanding of all the moving parts is my highlight of this experience. I know I've said that already. Last time.
-
-I think...
-`,
-  },
-];
-
-function renderInlineMarkdown(text: string): React.ReactNode[] {
-  const chunks = text.split(/(`[^`]+`)/g);
-  return chunks.flatMap((chunk, idx) => {
-    if (chunk.startsWith("`") && chunk.endsWith("`") && chunk.length >= 2) {
-      const code = chunk.slice(1, -1);
-      return (
-        <code
-          key={`code-${idx}`}
-          className="px-1.5 py-0.5 rounded opacity-90"
-          style={{
-            fontFamily: mono,
-            fontSize: "12px",
-            backgroundColor: "rgba(127,127,127,0.15)",
-          }}
-        >
-          {code}
-        </code>
-      );
-    }
-
-    // Split the plain text chunk by double asterisks for bolding
-    const subChunks = chunk.split(/(\*\*[^*]+\*\*)/g);
-    return subChunks.flatMap((subChunk, subIdx) => {
-      if (
-        subChunk.startsWith("**") &&
-        subChunk.endsWith("**") &&
-        subChunk.length >= 4
-      ) {
-        const boldText = subChunk.slice(2, -2);
-        return [
-          <strong
-            key={`bold-${idx}-${subIdx}`}
-            style={{ fontWeight: 600 }}
-            className="opacity-100"
-          >
-            {boldText}
-          </strong>,
-        ];
-      }
-
-      // Parse markdown links: [text](url)
-      const linkChunks = subChunk.split(/(\[[^\]]+\]\([^\)]+\))/g);
-      return linkChunks.map((linkChunk, linkIdx) => {
-        const match = linkChunk.match(/^\[(.*?)\]\((.*?)\)$/);
-        if (match) {
-          const linkText = match[1];
-          const url = match[2];
+function BlogMarkdown({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
+      components={{
+        a: ({ href, title, children }) => {
+          if (!href) return <>{children}</>;
           return (
             <LinkPreview
-              key={`link-${idx}-${subIdx}-${linkIdx}`}
-              url={url}
+              url={href}
+              title={title}
               className="text-rose-500 dark:text-rose-400 hover:opacity-80 underline transition-opacity inline"
             >
-              {linkText}
+              {children}
             </LinkPreview>
           );
-        }
-        return <span key={`txt-${idx}-${subIdx}-${linkIdx}`}>{linkChunk}</span>;
-      });
-    });
-  });
-}
-
-function renderMarkdownBlocks(content: string): React.ReactNode[] {
-  const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const blocks: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const rawLine = lines[i];
-    const line = rawLine.trim();
-
-    if (!line) {
-      i += 1;
-      continue;
-    }
-
-    if (line.startsWith("<iframe") || line.startsWith("[youtube](")) {
-      let src = "";
-      if (line.startsWith("<iframe")) {
-        const srcMatch = line.match(/src="([^"]+)"/);
-        src = srcMatch ? srcMatch[1] : "";
-      } else {
-        const srcMatch = line.match(/\[youtube\]\(([^)]+)\)/);
-        src = srcMatch ? srcMatch[1] : "";
-      }
-      if (src) {
-        blocks.push(
-          <div
-            key={`yt-${i}`}
-            className="mt-6 aspect-video w-full rounded-xl overflow-hidden shadow-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5"
-          >
-            <iframe
-              src={src}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              className="w-full h-full"
-            />
-          </div>,
-        );
-        i += 1;
-        continue;
-      }
-    }
-
-    if (line.startsWith("![")) {
-      const imgMatch = line.match(/^!\[(.*?)\]\((.*?)\)$/);
-      if (imgMatch) {
-        const alt = imgMatch[1];
-        let src = imgMatch[2];
-        if (!src.startsWith("/") && !src.startsWith("http")) {
-          src = "/" + src;
-        }
-        blocks.push(
-          <div
-            key={`img-${i}`}
-            className="mt-6 w-full rounded-xl overflow-hidden shadow-md border border-black/10 dark:border-white/10 hover:shadow-xl transition-all duration-300 bg-black/5 dark:bg-white/5"
-          >
-            <img
-              src={src}
-              alt={alt}
-              className="w-full h-auto object-cover transition-transform duration-300 hover:scale-[1.01]"
-            />
-          </div>,
-        );
-        i += 1;
-        continue;
-      }
-    }
-
-    if (line === "---" || line === "***" || line === "___") {
-      blocks.push(
-        <hr
-          key={`hr-${i}`}
-          className="my-8 border-t border-black/10 dark:border-white/10"
-        />,
-      );
-      i += 1;
-      continue;
-    }
-
-    if (line.startsWith("```")) {
-      const codeLines: string[] = [];
-      i += 1;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) {
-        codeLines.push(lines[i]);
-        i += 1;
-      }
-      i += 1;
-      blocks.push(
-        <pre
-          key={`pre-${i}`}
-          className="mt-5 p-4 rounded overflow-x-auto"
-          style={{
-            fontFamily: mono,
-            fontSize: "12px",
-            backgroundColor: "rgba(127,127,127,0.12)",
-          }}
-        >
-          <code>{codeLines.join("\n")}</code>
-        </pre>,
-      );
-      continue;
-    }
-
-    const headerMatch = line.match(/^(#{1,3})\s+(.*)$/);
-    if (headerMatch) {
-      const level = headerMatch[1].length;
-      const text = headerMatch[2].trim();
-      if (level === 1) {
-        blocks.push(
+        },
+        h1: ({ children }) => (
           <h2
-            key={`h2-${i}`}
             className="text-[30px] leading-[40px] pt-8"
             style={{ letterSpacing: "-0.8px", fontWeight: 500 }}
           >
-            {renderInlineMarkdown(text)}
-          </h2>,
-        );
-      } else if (level === 2) {
-        blocks.push(
+            {children}
+          </h2>
+        ),
+        h2: ({ children }) => (
           <h3
-            key={`h3-${i}`}
             className="text-[22px] leading-[32px] pt-10"
             style={{ letterSpacing: "-0.4px" }}
           >
-            {renderInlineMarkdown(text)}
-          </h3>,
-        );
-      } else {
-        blocks.push(
-          <h4 key={`h4-${i}`} className="text-[18px] leading-[28px] pt-8">
-            {renderInlineMarkdown(text)}
-          </h4>,
-        );
-      }
-      i += 1;
-      continue;
-    }
+            {children}
+          </h3>
+        ),
+        h3: ({ children }) => (
+          <h4 className="text-[18px] leading-[28px] pt-8">{children}</h4>
+        ),
+        p: ({ children }) => (
+          <p
+            className="opacity-75 text-[15px] leading-[26px] pt-5"
+            style={{ fontWeight: 300 }}
+          >
+            {children}
+          </p>
+        ),
+        ul: ({ children }) => (
+          <ul className="pt-4 pl-5 list-disc space-y-2 opacity-80">
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="pt-4 pl-5 list-decimal space-y-2 opacity-80">
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => (
+          <li className="text-[15px] leading-[25px]">{children}</li>
+        ),
+        hr: () => (
+          <hr className="my-8 border-t border-black/10 dark:border-white/10" />
+        ),
+        pre: ({ children }) => (
+          <pre
+            className="mt-5 p-4 rounded overflow-x-auto"
+            style={{
+              fontFamily: mono,
+              fontSize: "12px",
+              backgroundColor: "rgba(127,127,127,0.12)",
+            }}
+          >
+            {children}
+          </pre>
+        ),
+        code: ({ inline, children, className }) => {
+          if (inline) {
+            return (
+              <code
+                className="px-1.5 py-0.5 rounded opacity-90"
+                style={{
+                  fontFamily: mono,
+                  fontSize: "12px",
+                  backgroundColor: "rgba(127,127,127,0.15)",
+                }}
+              >
+                {children}
+              </code>
+            );
+          }
 
-    if (/^(-|\*)\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*(-|\*)\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*(-|\*)\s+/, ""));
-        i += 1;
-      }
-      blocks.push(
-        <ul
-          key={`ul-${i}`}
-          className="pt-4 pl-5 list-disc space-y-2 opacity-80"
-        >
-          {items.map((item, idx) => (
-            <li key={`li-${idx}`} className="text-[15px] leading-[25px]">
-              {renderInlineMarkdown(item)}
-            </li>
-          ))}
-        </ul>,
-      );
-      continue;
-    }
+          return <code className={className}>{children}</code>;
+        },
+        img: ({ src, alt, title }) => {
+          const safeSrc = normalizeMarkdownImageUrl(src);
+          return safeSrc ? (
+            <div className="mt-6 w-full rounded-xl overflow-hidden shadow-md border border-black/10 dark:border-white/10 hover:shadow-xl transition-all duration-300 bg-black/5 dark:bg-white/5">
+              <img
+                src={safeSrc}
+                alt={alt ?? ""}
+                title={title}
+                className="w-full h-auto object-cover transition-transform duration-300 hover:scale-[1.01]"
+              />
+            </div>
+          ) : null;
+        },
+        iframe: ({ src, title }) => {
+          const safeSrc = typeof src === "string" ? src : "";
+          if (!safeSrc) return null;
 
-    if (/^\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
-        i += 1;
-      }
-      blocks.push(
-        <ol
-          key={`ol-${i}`}
-          className="pt-4 pl-5 list-decimal space-y-2 opacity-80"
-        >
-          {items.map((item, idx) => (
-            <li key={`oli-${idx}`} className="text-[15px] leading-[25px]">
-              {renderInlineMarkdown(item)}
-            </li>
-          ))}
-        </ol>,
-      );
-      continue;
-    }
-
-    const paragraphLines = [line];
-    i += 1;
-    while (
-      i < lines.length &&
-      lines[i].trim() &&
-      !/^(#|##|###)\s+/.test(lines[i].trim()) &&
-      !/^\s*(-|\*)\s+/.test(lines[i]) &&
-      !/^\s*\d+\.\s+/.test(lines[i]) &&
-      !lines[i].trim().startsWith("```") &&
-      !lines[i].trim().startsWith("<iframe") &&
-      !lines[i].trim().startsWith("[youtube](") &&
-      lines[i].trim() !== "---" &&
-      lines[i].trim() !== "***" &&
-      lines[i].trim() !== "___"
-    ) {
-      paragraphLines.push(lines[i].trim());
-      i += 1;
-    }
-
-    blocks.push(
-      <p
-        key={`p-${i}`}
-        className="opacity-75 text-[15px] leading-[26px] pt-5"
-        style={{ fontWeight: 300 }}
-      >
-        {renderInlineMarkdown(paragraphLines.join(" "))}
-      </p>,
-    );
-  }
-
-  return blocks;
+          return (
+            <div className="mt-6 aspect-video w-full rounded-xl overflow-hidden shadow-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
+              <iframe
+                src={safeSrc}
+                title={title || "YouTube video player"}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            </div>
+          );
+        },
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 const projects: Project[] = [
@@ -938,7 +554,7 @@ export default function App() {
               style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}
             >
               Backend engineer based in Enugu, Nigeria. Over the past months at
-              HNG I shipped a profile management API with GitHub OAuth and NLP
+              HNG and beyond, I shipped a profile management API with GitHub OAuth and NLP
               search, a distributed retry engine, and contributed to
               SkillBridge, a talent assessment platform built in NestJS. I care
               about systems that are honest, operable, and built to last.
@@ -1008,7 +624,7 @@ export default function App() {
                 className="text-[24px] leading-[32px]"
                 style={{ fontWeight: 500, letterSpacing: "-0.6px" }}
               >
-                HNG Projects
+                Projects
               </h2>
               <div className="pt-10 flex flex-col gap-12">
                 {projects.map((p) => (
@@ -1415,7 +1031,7 @@ export default function App() {
                   Written by Zubbee™
                 </p>
                 <div className="pt-2">
-                  {renderMarkdownBlocks(selectedPost.content)}
+                  <BlogMarkdown content={selectedPost.content} />
                 </div>
               </article>
             )}
