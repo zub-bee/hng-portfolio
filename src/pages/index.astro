@@ -100,14 +100,14 @@ const jsonLd = {
                 {p.description}
               </p>
               <p
-                class="opacity-50 text-[13px] leading-[20px] pt-3"
+                class="opacity-80 text-[13px] leading-[20px] pt-3"
                 style={`font-family: ${FONTS.mono}; letter-spacing: 0.3px`}
               >
                 {p.stack.join(' · ')}
               </p>
               <p
                 class="opacity-70 text-[13px] leading-[21px] pt-3"
-                style="font-weight: 300"
+                style="font-weight: 300; line-height: 20px"
               >
                 <span
                   class="opacity-50 uppercase text-[10px]"
@@ -142,16 +142,18 @@ const jsonLd = {
                     {link.label} <Icon name="external-link" size={10} />
                   </LinkPreview>
                 ))}
-                <LinkPreview
-                  url={`/blog/${p.blogSlug}/`}
-                  class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
-                  layout="nav"
-                  eyebrow={post?.data.projectName}
-                  title={post?.data.title}
-                  description={post?.data.summary}
-                >
-                  Blog <Icon name="book-open" size={10} />
-                </LinkPreview>
+                {post && (
+                  <LinkPreview
+                    url={`/blog/${p.blogSlug}/`}
+                    class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] uppercase"
+                    layout="nav"
+                    eyebrow={post.data.projectName}
+                    title={post.data.title}
+                    description={post.data.summary}
+                  >
+                    Blog <Icon name="book-open" size={10} />
+                  </LinkPreview>
+                )}
               </div>
             </div>
           )
