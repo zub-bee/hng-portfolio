@@ -13,7 +13,7 @@ export const SITE = {
     "Backend engineer in Enugu, Nigeria. I build profile management APIs with OAuth and NLP search, distributed retry engines, and NestJS talent platforms.",
   blogTitle: "Engineering Blog | Deborah Anyachukwu",
   blogDescription:
-    "Notes from real backend builds: system design choices, mistakes, and what changed between first implementation and final solution.",
+    "Notes from backend builds: system design choices, mistakes, and what changed between first implementation and final solution.",
   ogImage: "/og.png",
   github: "https://github.com/zub-bee",
   githubHandle: "@zub-bee",

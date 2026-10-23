@@ -15,6 +15,7 @@
  * a link is actually hovered.
  */
 
+import { track } from "@vercel/analytics";
 const OPEN_DELAY = 50;
 const CLOSE_DELAY = 100;
 const GAP = 10;
@@ -159,6 +160,7 @@ export function initLinkPreviews() {
       link.addEventListener("pointerenter", (e) => {
         if (e.pointerType !== "mouse") return;
         if (link === active) return;
+        track("link preview was opened");
         scheduleOpen(link, e.clientX);
       });
 
@@ -177,6 +179,7 @@ export function initLinkPreviews() {
 
   document.addEventListener("focusin", (e) => {
     const link = linkFrom(e.target);
+    track("link was focused");
     if (link) scheduleOpen(link);
   });
 
@@ -195,4 +198,9 @@ export function initLinkPreviews() {
     },
     { passive: true },
   );
+
+  document.addEventListener("click", (e) => {
+    const link = linkFrom(e.target);
+    if (link) track("link was clicked");
+  });
 }
