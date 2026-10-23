@@ -3,7 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro'
 import LinkPreview from '../components/LinkPreview.astro'
 import Icon from '../components/Icon.astro'
 import { projects, featuredEndpoints } from '../data/projects'
-import { skills, reflections } from '../data/skills'
+import { skills } from '../data/skills'
 import { SITE, FONTS } from '../data/site.js'
 import { getCollection } from 'astro:content'
 
@@ -273,33 +273,6 @@ const jsonLd = {
           numeric ranges. No LLMs, no external NLP service.
         </p>
       </div>
-    </div>
-  </section>
-
-  {/* LEARNING REFLECTION */}
-  <section class="border-t border-black/10 dark:border-white/10 pt-12 pb-12">
-    <h2
-      class="text-[24px] leading-[32px]"
-      style="font-weight: 500; letter-spacing: -0.6px"
-    >
-      Learning Reflection
-    </h2>
-    <div class="pt-10 flex flex-col gap-8">
-      {
-        reflections.map((r) => (
-          <div>
-            <h3 class="text-[16px] leading-[24px]" style="font-weight: 500">
-              {r.title}
-            </h3>
-            <p
-              class="opacity-60 text-[14px] leading-[22.75px] pt-2"
-              style="font-weight: 300"
-            >
-              {r.body}
-            </p>
-          </div>
-        ))
-      }
     </div>
   </section>
 </BaseLayout>
